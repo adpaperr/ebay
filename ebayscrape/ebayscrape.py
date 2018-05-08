@@ -15,7 +15,7 @@ def resort(dataframe, value):
 	dataframe = dataframe.reset_index(drop=True)
 	return dataframe
 
-# Search ebay for terms, return as soup
+# Search ebay for terms, return as soupp
 def search(terms):
 	for term in terms:
 		site = 'http://www.ebay.com/sch/i.html?_from=R40&_nkw='+term+'&_in_kw=1&_ex_kw=&_sacat=0&LH_Sold=1&_udlo=&_udhi=&LH_Auction=1&_samilow=&_samihi=&_sadis=15&_stpos=90278-4805&_sargn=-1%26saslc%3D1&_salic=1&_sop=13&_dmd=1&_ipg=200&LH_Complete=1'
