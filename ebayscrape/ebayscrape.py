@@ -6,12 +6,15 @@ import pandas as pd
 
 
 # enter multiple phrases separated by '',
-sampleterm = ['matebook e']
-df = pd.DataFrame(columns=['date_sold','name','link','price','bids'])
+sampleterm = ['fantom x6']
+
+def dfbuild():
+	dataframe = pd.DataFrame(columns=['date_sold','name','link','price','bids'])
+	return dataframe
 
 # Resort Index by A-Z
 def resort(dataframe, value):
-	dataframe = dataframe.sort_values(value)
+	dataframe = dataframe.sort_values(by=value, ascending=False)
 	dataframe = dataframe.reset_index(drop=True)
 	return dataframe
 
@@ -24,16 +27,20 @@ def search(terms):
 		soup = bs4.BeautifulSoup(res.text, "lxml")
 	return soup
 
+def pulldata(dataframe):
+	dataframe.date_sold = [e.span.contents[0].split(' ')[0] for e in soup.find_all(class_="tme")] 	# Date/Time Stamp
+	dataframe.name = [e.contents[0] for e in soup.find_all(class_="vip")] 							# Name of item
+	dataframe.link = [e['href'] for e in soup.find_all(class_="vip")]								# Store links
+	dataframe.bids = [e.span.contents[0].split(' ')[0] for e in soup.find_all("li", "lvformat")]	# Bid Spans
+	dataframe.price = [e.contents[0] for e in soup.find_all("span", "bold bidsold")]				# Prices
+	return dataframe
 
+df = dfbuild()
 soup = search(sampleterm)
+df = pulldata(df)
+df = resort(df, 'bids')
 
-df.date_sold = [e.span.contents[0].split(' ')[0] for e in soup.find_all(class_="tme")] 	# Date/Time Stamp
-df.name = [e.contents[0] for e in soup.find_all(class_="vip")] 							# Name of item
-df.link = [e['href'] for e in soup.find_all(class_="vip")]								# Store links
-df.bids = [e.span.contents[0].split(' ')[0] for e in soup.find_all("li", "lvformat")]	# Bid Spans
-df.price = [e.contents[0] for e in soup.find_all("span", "bold bidsold")]				# Prices
 
-#df = resort(df, 'date_sold')
 print(soup.prettify())
 print(df)
 
