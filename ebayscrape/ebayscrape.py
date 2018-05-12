@@ -1,13 +1,13 @@
-import csv
 import bs4
 import requests
-#import argparse
+import configs
 import pandas as pd
 
 
 # enter multiple phrases separated by '',
-sampleterm = ['fantom x6']
+searchterm = 'matebook e'
 
+# Creates the structure of a dataframe
 def dfbuild():
 	dataframe = pd.DataFrame(columns=['date_sold','name','link','price','bids'])
 	return dataframe
@@ -18,50 +18,55 @@ def resort(dataframe, value):
 	dataframe = dataframe.reset_index(drop=True)
 	return dataframe
 
-# Search ebay for terms, return as soupp
-def search(terms):
-	for term in terms:
-		site = 'http://www.ebay.com/sch/i.html?_from=R40&_nkw='+term+'&_in_kw=1&_ex_kw=&_sacat=0&LH_Sold=1&_udlo=&_udhi=&LH_Auction=1&_samilow=&_samihi=&_sadis=15&_stpos=90278-4805&_sargn=-1%26saslc%3D1&_salic=1&_sop=13&_dmd=1&_ipg=200&LH_Complete=1'
-		res = requests.get(site)
-		res.raise_for_status()
-		soup = bs4.BeautifulSoup(res.text, "lxml")
+# Search ebay for terms, return as soup
+def search(term):
+	site = 'http://www.ebay.com/sch/i.html?_from=R40&_nkw='+term+'&_in_kw=1&_ex_kw=&_sacat=0&LH_Sold=1&_udlo=&_udhi=&LH_Auction=1&_samilow=&_samihi=&_sadis=15&_stpos=90278-4805&_sargn=-1%26saslc%3D1&_salic=1&_sop=13&_dmd=1&_ipg=200&LH_Complete=1'
+	res = requests.get(site)
+	res.raise_for_status()
+	soup = bs4.BeautifulSoup(res.text, "lxml")
 	return soup
 
-def pulldata(dataframe):
-	dataframe.date_sold = [e.span.contents[0].split(' ')[0] for e in soup.find_all(class_="tme")] 	# Date/Time Stamp
-	dataframe.name = [e.contents[0] for e in soup.find_all(class_="vip")] 							# Name of item
-	dataframe.link = [e['href'] for e in soup.find_all(class_="vip")]								# Store links
-	dataframe.bids = [e.span.contents[0].split(' ')[0] for e in soup.find_all("li", "lvformat")]	# Bid Spans
-	dataframe.price = [e.contents[0] for e in soup.find_all("span", "bold bidsold")]				# Prices
+# Grab the actual data from soup, fix dtypes
+def pulldata(dataframe, soup):
+	from datetime import datetime
+	now = datetime.now()
+	dataframe.date_sold = [e.span.contents[0].split(' ')[0] for e in soup.find_all(class_="tme")]
+	dataframe.date_sold = dataframe.date_sold.apply(lambda x: datetime.strptime(x + str(now.year), '%b-%d' + '%Y'))
+	dataframe.name = [e.contents[0] for e in soup.find_all(class_="vip")]
+	dataframe.link = [e['href'] for e in soup.find_all(class_="vip")]
+	dataframe.bids = [int(e.span.contents[0].split(' ')[0]) for e in soup.find_all("li", "lvformat")]
+	dataframe.price = [e.contents[0] for e in soup.find_all("span", "bold bidsold")]
+	dataframe.price = dataframe.price.replace('[\$,)]','', regex=True).astype(float)
 	return dataframe
 
-df = dfbuild()
-soup = search(sampleterm)
-df = pulldata(df)
-df = resort(df, 'bids')
+# Write out the file to CSV with the first sentence as file name
+def writetocsv(dataframe):
+	import csv
+	filename = searchterm.split(' ', 1)[0]
+	writer = pd.ExcelWriter('searches/{}.xls'.format(filename))
+	dataframe.to_excel(writer, 'ebay_search', index = False)
+	writer.save()
+
+def main():
+	df = dfbuild()
+	soup = search(searchterm)
+	df = pulldata(df, soup)
+	df = resort(df, 'date_sold')
+
+	start = df.date_sold.iloc[-1]
+	end = df.date_sold.iloc[0]
+	idx = pd.date_range(start, end)
+	df.index = pd.DatetimeIndex(df.index)
+	df = df.reindex(idx, fill_value='')
+
+	print(df)
+	writetocsv(df)
+
+if __name__ == '__main__':
+	main()
 
 
-print(soup.prettify())
-print(df)
-
-	# l = [e for e in zip(dte, titles, links, prices, bids)]
-	# print(l)
-	
-	# write each entry of the rowlist `l` to the csv output file
-	# with open('%s.csv' % phrase, 'wb') as csvfile:
-	#     w = csv.writer(csvfile)
-	#     for e in l:
-	#         w.writerow(e)
-
-	# with open('{}.csv'.format(phrases), 'w') as csvfile:
-	# 	wr = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-	# 	wr.writerow(l)
-
-	# writer = pd.ExcelWriter('{}.xls'.format(phrases))
-	# for e in l:
-	# 	e.to_excel(writer, 'Unique', index = False)
-	# writer.save()	
-
+	# print(configs.pushuser)
 
 
 
